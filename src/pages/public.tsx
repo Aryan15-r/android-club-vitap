@@ -49,9 +49,9 @@ function Footer({c}:{c:ClubSettings}){const soc=[['Instagram',c.instagram],['Lin
   <div><h2 className="font-semibold">Contact</h2><div className="mt-3 space-y-2 text-sm text-mute">{c.email?<a className="flex items-center gap-2 hover:text-droid" href={`mailto:${c.email}`}><Mail size={16}/>{c.email}</a>:<p>Contact email not configured yet.</p>}{soc.map(([l,u])=><a key={l} className="block hover:text-droid" href={u} target="_blank" rel="noreferrer">{l}</a>)}</div></div></div>
   <p className="border-t border-white/10 py-4 text-center text-xs text-mute">© {new Date().getFullYear()} {c.name}, {c.college}. Sample content for demonstration.</p></footer>}
 
-export function PublicLayout(){const{data:c}=useService(clubService.getClubSettings),loc=useLocation(),ready=!!c
+export function PublicLayout(){const{data:c,error}=useService(clubService.getClubSettings),loc=useLocation(),ready=!!c
  useEffect(()=>{if(!ready)return;if(loc.hash)setTimeout(()=>{const el=document.getElementById(loc.hash.slice(1));if(el)smoothScrollTo(el)},60);else smoothScrollTo(0,true)},[loc,ready])
- if(!c)return<Spinner/>
+ if(!c)return error?<div className="mx-auto max-w-6xl px-5 py-16"><Empty title="The club site could not load" hint={error}/></div>:<Spinner/>
  return<><Nav c={c}/><main key={loc.pathname} className="page-in"><Outlet/></main><Footer c={c}/></>}
 
 const Sec=({id,kicker,title,children}:{id:string;kicker:string;title:string;children:ReactNode})=><section id={id} className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 md:py-36"><Reveal><p className="text-sm font-semibold text-droid">{kicker}</p><h2 className="mb-8 mt-1 text-3xl font-bold tracking-tight md:text-4xl">{title}</h2></Reveal>{children}</section>
@@ -74,7 +74,8 @@ function FluidTitle({text}:{text:string}){const r=useRef<SVGSVGElement>(null);us
   {rest&&<text x="6" y="455" fontSize="84" fill="#fff" textLength={Math.min(960,rest.length*62)} lengthAdjust="spacingAndGlyphs" style={{fontFamily:'Inter,system-ui,sans-serif',fontWeight:900}}>{rest}</text>}</svg></h1>}
 
 // Hidden admin entrance: click the empty area next to the title and type the access key. Only tiny asterisks appear
-// (no box, no error message). A wrong key just fades away silently. Demo only: the key lives in frontend code.
+// (no box, no error message). A wrong key just fades away silently. The key is only a UX gate:
+// it is bundled into the client and grants no permissions; Supabase Auth and RLS protect the data.
 function SecretLock(){const nav=useNavigate(),[open,setO]=useState(false),[s,setS]=useState(''),ref=useRef<HTMLInputElement>(null),t=useRef(0)
  useEffect(()=>{if(open)ref.current?.focus();return()=>clearTimeout(t.current)},[open])
  const chg=(v:string)=>{const n=v.length<s.length?s.slice(0,v.length):s+v.slice(s.length);setS(n);clearTimeout(t.current);t.current=window.setTimeout(()=>setS(''),4000);if(authService.verifyAccessKey(n))nav('/admin/login')}

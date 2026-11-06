@@ -1,7 +1,7 @@
 import{useEffect,useMemo,useRef,useState,type FormEvent,type ReactNode}from'react'
 import{motion,useReducedMotion,useScroll,useTransform,useMotionValue,animate,type MotionValue}from'framer-motion'
 import{X,Loader2,Upload}from'lucide-react'
-import{onChange,mediaService,teamService}from'./services'
+import{onChange,mediaService,teamService,onAuthChange,getAuthSnapshot}from'./services'
 import{initSmooth}from'./smooth'
 import{siAndroid}from'simple-icons'
 
@@ -9,6 +9,10 @@ export function useService<T>(fn:()=>Promise<T>,deps:unknown[]=[]){
  const[s,setS]=useState<{d?:T;ready:boolean;err?:string}>({ready:false})
  useEffect(()=>{let ok=true;const run=()=>fn().then(d=>{if(ok)setS({d,ready:true})},e=>{if(ok)setS({ready:true,err:e.message})});run();const off=onChange(run);return()=>{ok=false;off()}},deps)
  return{data:s.d,loading:!s.ready,error:s.err}}
+
+// Cached auth snapshot. Re-renders guards when the session is restored, expired
+// or signed out, without changing any existing markup.
+export function useAuth(){const[a,setA]=useState(getAuthSnapshot());useEffect(()=>onAuthChange(()=>setA(getAuthSnapshot())),[]);return a}
 
 let push:(m:string,k?:string)=>void=()=>{}
 export const toast=(m:string,k='ok')=>push(m,k)
@@ -40,7 +44,7 @@ export type F={k:string;label:string;t:'text'|'area'|'date'|'time'|'select'|'com
 export const clean=(fs:F[],v:any)=>{const o={...v};fs.forEach(f=>{if(f.t==='lines')o[f.k]=(o[f.k]||[]).map((s:string)=>s.trim()).filter(Boolean)});return o}
 export function Fields({fields,v,set}:{fields:F[];v:any;set:(k:string,x:any)=>void}){
  const{data:team}=useService(teamService.getTeamMembers)
- const up=async(files:FileList|null,k:string,multi:boolean)=>{if(!files?.length)return;try{const a=await Promise.all([...files].map(f=>mediaService.uploadImage(f)));if(multi)set(k,[...(v[k]||[]),...a.map(x=>({id:x.id,url:x.url,alt:x.name}))]);else set(k,a[0].url);toast('Added as a temporary local preview, not a permanent upload.')}catch(e:any){toast(e.message,'err')}}
+ const up=async(files:FileList|null,k:string,multi:boolean)=>{if(!files?.length)return;try{const a=await Promise.all([...files].map(f=>mediaService.uploadImage(f)));if(multi)set(k,[...(v[k]||[]),...a.map(x=>({id:x.id,url:x.url,alt:x.name}))]);else set(k,a[0].url);toast('Image uploaded.')}catch(e:any){toast(e.message,'err')}}
  return<div className="grid gap-4 sm:grid-cols-2">{fields.map(f=>{
   const id='f-'+f.k,val=v[f.k],wide=!['text','date','time','select','combo'].includes(f.t),chg=(e:any)=>set(f.k,e.target.value)
   let c:ReactNode
