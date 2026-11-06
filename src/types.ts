@@ -8,3 +8,6 @@ export interface AdminUser{id:string;email:string;name:string}
 export interface AdminMember{id:string;email:string;createdAt:string;isSelf:boolean}
 export interface AdminInvite{email:string;createdAt:string;invitedBy:string}
 export interface MediaAsset{id:string;url:string;name:string;size:number;temporary:boolean}
+export interface TotpSecret{id:string;secret:string;createdAt:string;lastVerifiedAt?:string;isActive:boolean}
+export interface TotpEnrollment{secret:string;qrCodeUrl:string;provisioningUrl:string}
+export type LoginOutcomeWithTotp={status:'admin'}|{status:'setup';email:string}|{status:'totp_enrollment';email:string}|{status:'totp_verification';email:string}
