@@ -1,16 +1,3 @@
--- =============================================================================
--- ANDROID CLUB VIT-AP — business operations
--- Run after 20261106000200_rls.sql.
---
--- These functions are the few multi-row operations that must be atomic. They
--- re-check public.is_admin() themselves, so they are safe to expose over RPC.
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- Replace an event's gallery / registration images and organizers atomically.
--- A NULL argument means "leave that relation untouched", which lets the UI
--- toggle publication without rewriting images or organizers.
--- -----------------------------------------------------------------------------
 create or replace function public.set_event_relations(
   p_event_id uuid,
   p_gallery jsonb default null,
@@ -74,11 +61,6 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- Remove a team member. Members referenced by past events are archived as
--- "former" so organizer history stays intact; everyone else is deleted.
--- Returns 'archived' or 'deleted'.
--- -----------------------------------------------------------------------------
 create or replace function public.delete_team_member(p_member_id uuid)
 returns text
 language plpgsql
@@ -108,9 +90,6 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- Persist a new display order for team members (1-based).
--- -----------------------------------------------------------------------------
 create or replace function public.reorder_team_members(p_ids uuid[])
 returns void
 language plpgsql
@@ -133,10 +112,6 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- Delete an uploaded media record if no content references it.
--- Returns the storage path so the client can remove the object itself.
--- -----------------------------------------------------------------------------
 create or replace function public.delete_media(p_media_id uuid)
 returns text
 language plpgsql
@@ -176,7 +151,6 @@ begin
 end;
 $$;
 
--- The RPCs are for signed-in admins only.
 revoke execute on function public.set_event_relations(uuid, jsonb, jsonb, uuid[]) from public, anon;
 revoke execute on function public.delete_team_member(uuid) from public, anon;
 revoke execute on function public.reorder_team_members(uuid[]) from public, anon;

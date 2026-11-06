@@ -1,7 +1,5 @@
 import type{Announcement,ClubSettings,EventImage,EventItem,TeamMember,TeamRole}from'../types'
 
-// Database rows (snake_case) and the mapping into the UI's existing models.
-// Keeping this in one place means components never learn about column names.
 
 export interface SettingsRow{id:number;name:string;college:string;tagline:string;description:string;about:string;mission:string;vision:string;objectives:string[]|null;areas:string[]|null;pillars:string[]|null;faqs:string[]|null;email:string;instagram:string;linkedin:string;github:string;logo_url:string;hero_heading:string;hero_subtitle:string}
 

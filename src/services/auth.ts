@@ -2,9 +2,6 @@ import type{AdminUser}from'../types'
 import{getSupabase,fail,failAuth,requireSupabase}from'./client'
 
 const UNLOCK_KEY='acvit_unlock'
-// The hidden entrance is a user-experience gate, not a security boundary. Real
-// access control is Supabase Auth plus row level security. The value lives in a
-// VITE_ variable, so treat it as public and change it in .env.local.
 const ACCESS_KEY=(import.meta.env.VITE_ADMIN_ACCESS_KEY as string|undefined)||'admin@17'
 
 interface AuthUserLike{id:string;email?:string;user_metadata?:Record<string,unknown>}
@@ -38,9 +35,6 @@ const toAdmin=(user:AuthUserLike):AdminUser=>{
  const name=[meta.name,meta.full_name].find(v=>typeof v==='string'&&v.trim()) as string|undefined
  return{id:user.id,email:user.email??'',name:name?.trim()||user.email?.split('@')[0]||'Admin'}
 }
-
-// The admins table only exposes the signed-in user's own row, so this is a
-// safe, cheap authorisation check. RLS still protects every table if it fails.
 async function resolveAdmin(user:AuthUserLike):Promise<AdminUser|null>{
  const sb=getSupabase()
  if(!sb)return null
@@ -48,27 +42,18 @@ async function resolveAdmin(user:AuthUserLike):Promise<AdminUser|null>{
  if(error||!data)return null
  return toAdmin(user)
 }
-
-// Only true while the allowlist is empty. The RPC returns a boolean, never
-// directory data, so it is safe to call before the first admin exists.
 async function canSetup():Promise<boolean>{
  const sb=getSupabase()
  if(!sb)return false
  const{data,error}=await sb.rpc('admin_setup_available')
  return !error&&data===true
 }
-
-// Applies an invitation for the signed-in email. Safe to call for every
-// account: it returns false when no invitation matches.
 async function acceptInvite():Promise<boolean>{
  const sb=getSupabase()
  if(!sb)return false
  const{data,error}=await sb.rpc('accept_admin_invite')
  return !error&&data===true
 }
-
-// Resolve the admin row, accepting a pending invitation on the way. This keeps
-// the normal admin path to a single query while making invitations automatic.
 async function resolveWithInvite(user:AuthUserLike):Promise<AdminUser|null>{
  const admin=await resolveAdmin(user)
  if(admin)return admin
@@ -92,8 +77,6 @@ export async function initAuth():Promise<void>{
  }catch{
   publish({user:null,unlocked:readUnlocked(),ready:true})
  }
- // Keep the cached admin in sync with token refreshes and sign-outs. Queries
- // are deferred so they never run inside the auth client's lock.
  sb.auth.onAuthStateChange((_event,session)=>{
   setTimeout(()=>{
    if(!session){publish({user:null,ready:true});return}
@@ -117,9 +100,7 @@ export const authService={
   if(!data.session||!data.user)throw new Error('Sign in failed. Please try again.')
   const admin=await resolveWithInvite(data.user)
   if(!admin){
-   // On a brand-new database the first confirmed account may claim admin
-   // instead of being turned away. Keep the session for that one action.
-   if(await canSetup().catch(()=>false)){
+     if(await canSetup().catch(()=>false)){
     publish({user:null,ready:true})
     return{status:'setup',email:data.user.email||c.email.trim()}
    }
@@ -129,9 +110,6 @@ export const authService={
   publish({user:admin,ready:true})
   return{status:'admin'}
  },
-
- // A restored session on a database with no admins can show the one-click
- // setup card without asking the person to type their password again.
  async setupSession():Promise<string|null>{
   const sb=getSupabase()
   if(!sb)return null
@@ -141,10 +119,7 @@ export const authService={
   return data.session.user.email||''
  },
 
- // Makes the current confirmed account the first admin. The RPC refuses when
- // an admin already exists, so this cannot be used to take over a configured
- // site; it is only a one-time bootstrap on a new database.
- async claimFirstAdmin():Promise<AdminUser>{
+    async claimFirstAdmin():Promise<AdminUser>{
   const sb=requireSupabase()
   const{error}=await sb.rpc('claim_first_admin')
   if(error)fail(error)
@@ -163,17 +138,14 @@ export const authService={
   publish({user:null,unlocked:false,ready:true})
  },
 
- // Sends a Supabase recovery email. The link returns to this origin and opens
- // /admin/reset-password, where the user chooses a new password.
- async requestPasswordReset(email:string):Promise<void>{
+   async requestPasswordReset(email:string):Promise<void>{
   const sb=requireSupabase()
   const redirectTo=`${window.location.origin}/admin/reset-password`
   const{error}=await sb.auth.resetPasswordForEmail(email.trim(),{redirectTo})
   if(error)failAuth(error.message)
  },
 
- // A recovery link creates a session before the reset page renders.
- async hasSession():Promise<boolean>{
+  async hasSession():Promise<boolean>{
   const sb=getSupabase()
   if(!sb)return false
   const{data,error}=await sb.auth.getSession()
@@ -188,9 +160,7 @@ export const authService={
   publish({user:null,ready:true})
  },
 
- // Synchronous on purpose: the existing hidden entrance calls this while
- // typing, so it must answer immediately.
- verifyAccessKey(k:string):boolean{
+   verifyAccessKey(k:string):boolean{
   const ok=k.length>0&&k===ACCESS_KEY
   if(ok)markUnlocked()
   return ok

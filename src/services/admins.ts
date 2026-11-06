@@ -3,9 +3,6 @@ import{emitChange,fail,failAuth,requireSupabase}from'./client'
 
 export type InviteStatus='added'|'pending'|'exists'|'self'
 export interface InviteResult{status:InviteStatus;email?:string}
-
-// The admins table is only readable through these RPCs, so no email addresses
-// or allowlist rows are exposed to the public REST surface.
 export const adminService={
  async listAdmins():Promise<AdminMember[]>{
   const{data,error}=await requireSupabase().rpc('list_admins')
@@ -46,10 +43,6 @@ export const adminService={
   if(error)fail(error)
   emitChange()
  },
-
- // Sends a Supabase magic link. The link signs the person in and the client
- // applies the pending invitation during initAuth, so no service-role key or
- // extra server is needed. `createUser` is true for a brand-new email.
  async sendInviteEmail(email:string,createUser:boolean):Promise<void>{
   const{error}=await requireSupabase().auth.signInWithOtp({
    email:email.trim(),

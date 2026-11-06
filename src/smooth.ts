@@ -1,6 +1,5 @@
 import Lenis from'lenis'
 let lenis:Lenis|null=null
-// Slow, eased scrolling for wheel/trackpad/touch. Disabled when the user prefers reduced motion.
 export function initSmooth(){
  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return
  lenis=new Lenis({lerp:.055,wheelMultiplier:.75,touchMultiplier:1.2,syncTouch:true,syncTouchLerp:.08})

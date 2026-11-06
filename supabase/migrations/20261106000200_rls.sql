@@ -1,15 +1,3 @@
--- =============================================================================
--- ANDROID CLUB VIT-AP — row level security, storage bucket and policies
--- Run after 20261106000100_schema.sql.
---
--- Public (anon) callers can read published content only. Every write requires
--- an authenticated user whose id is present in public.admins. These rules are
--- enforced by Postgres, so they apply no matter how the request is made.
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- Row level security
--- -----------------------------------------------------------------------------
 alter table public.club_settings enable row level security;
 alter table public.events enable row level security;
 alter table public.event_images enable row level security;
@@ -19,7 +7,6 @@ alter table public.team_members enable row level security;
 alter table public.announcements enable row level security;
 alter table public.media enable row level security;
 
--- Club settings: readable by everyone, editable by admins.
 drop policy if exists "club settings are public" on public.club_settings;
 create policy "club settings are public"
   on public.club_settings
@@ -34,7 +21,6 @@ create policy "club settings are editable by admins"
   using (public.is_admin())
   with check (public.is_admin());
 
--- Events: published rows are public; admins see and manage everything.
 drop policy if exists "published events are public" on public.events;
 create policy "published events are public"
   on public.events
@@ -70,7 +56,6 @@ create policy "admins delete events"
   to authenticated
   using (public.is_admin());
 
--- Event images: public only while the parent event is published.
 drop policy if exists "images of published events are public" on public.event_images;
 create policy "images of published events are public"
   on public.event_images
@@ -106,7 +91,6 @@ create policy "admins delete event images"
   to authenticated
   using (public.is_admin());
 
--- Event organizers: same visibility as the event they belong to.
 drop policy if exists "organizers of published events are public" on public.event_organizers;
 create policy "organizers of published events are public"
   on public.event_organizers
@@ -134,7 +118,6 @@ create policy "admins delete organizers"
   to authenticated
   using (public.is_admin());
 
--- Team roles and members: public profiles, admin-managed.
 drop policy if exists "team roles are public" on public.team_roles;
 create policy "team roles are public"
   on public.team_roles
@@ -191,7 +174,6 @@ create policy "admins delete team members"
   to authenticated
   using (public.is_admin());
 
--- Announcements: only published, in-window rows are public.
 drop policy if exists "live announcements are public" on public.announcements;
 create policy "live announcements are public"
   on public.announcements
@@ -231,8 +213,6 @@ create policy "admins delete announcements"
   to authenticated
   using (public.is_admin());
 
--- Media metadata is administrative only; the files themselves are served from
--- a public bucket because they are public event/team imagery.
 drop policy if exists "admins read media" on public.media;
 create policy "admins read media"
   on public.media
@@ -254,9 +234,6 @@ create policy "admins delete media"
   to authenticated
   using (public.is_admin());
 
--- -----------------------------------------------------------------------------
--- Storage: one public-read bucket for event, team and announcement imagery.
--- -----------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'media',
@@ -264,7 +241,6 @@ values (
   true,
   3145728,
   array['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-)
 on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,

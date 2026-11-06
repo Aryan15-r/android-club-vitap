@@ -9,8 +9,7 @@ function check(f:File){
 }
 
 export const mediaService={
- // A local object URL is only used for instant previews; it is never persisted.
- async previewImage(f:File):Promise<MediaAsset>{
+  async previewImage(f:File):Promise<MediaAsset>{
   check(f)
   return{id:crypto.randomUUID(),url:URL.createObjectURL(f),name:f.name,size:f.size,temporary:true}
  },
@@ -30,8 +29,7 @@ export const mediaService={
    .insert({path,url,name:f.name,mime:f.type,size:f.size,uploaded_by:auth.user.id})
    .select('id').single()
   if(dbError){
-   // Keep Storage and the metadata table consistent.
-   await sb.storage.from('media').remove([path])
+      await sb.storage.from('media').remove([path])
    fail(dbError,'Could not save the image details.')
   }
   return{id:(data as{id:string}).id,url,name:f.name,size:f.size,temporary:false}

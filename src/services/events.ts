@@ -37,9 +37,6 @@ async function fetchEvent(sb:SupabaseClientLike,id:string):Promise<EventItem|nul
  if(error)fail(error,'Could not load the event.')
  return data?mapEvent(data as unknown as EventRow):null
 }
-
-// One transaction for the child rows: images and organizers are replaced
-// together or not at all. NULL arguments leave a relation untouched.
 async function saveRelations(sb:SupabaseClientLike,id:string,d:Partial<EventItem>){
  if(!('gallery'in d||'regImages'in d||'organizerIds'in d))return
  const{error}=await sb.rpc('set_event_relations',{
@@ -59,8 +56,7 @@ export const eventService={
   if(f.status)q=q.eq('status',f.status)
   if(f.category)q=q.eq('category',f.category)
   if(f.q){
-   // Strip PostgREST filter syntax so a search term cannot alter the query.
-   const term=f.q.replace(/[,()%*"'\\]/g,' ').trim()
+      const term=f.q.replace(/[,()%*"'\\]/g,' ').trim()
    if(term)q=q.or(`title.ilike.%${term}%,venue.ilike.%${term}%`)
   }
   const{data,error}=await q.order('date',{ascending:true})
@@ -80,8 +76,7 @@ export const eventService={
   try{
    await saveRelations(sb,id,d)
   }catch(e){
-   // Do not leave a half-created event behind.
-   await sb.from('events').delete().eq('id',id)
+      await sb.from('events').delete().eq('id',id)
    throw e
   }
   const event=await fetchEvent(sb,id)

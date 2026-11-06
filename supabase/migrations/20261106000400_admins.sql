@@ -1,18 +1,3 @@
--- =============================================================================
--- ANDROID CLUB VIT-AP — admin management
--- Run after 20261106000300_functions.sql.
---
--- Makes the first admin self-service and lets existing admins invite/remove
--- others without a service-role key or manual SQL. Every function re-checks
--- public.is_admin(), except the two deliberately public setup helpers.
--- Safe to re-run.
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- Pending invitations. An admin can invite an email before that person has an
--- account; the invitation is applied automatically on their next sign-in.
--- The table has no direct grants: it is only reachable through the RPCs below.
--- -----------------------------------------------------------------------------
 create table if not exists public.admin_invites (
   email text primary key,
   invited_by uuid references auth.users (id) on delete set null,
@@ -24,16 +9,9 @@ create table if not exists public.admin_invites (
   )
 );
 
-comment on table public.admin_invites is
-  'Emails invited to administer the club. Applied when a matching confirmed account signs in.';
-
 alter table public.admin_invites enable row level security;
 revoke all on table public.admin_invites from anon, authenticated;
 
--- -----------------------------------------------------------------------------
--- Is there no admin yet? Used by the sign-in screen to offer first-time setup.
--- Returns a boolean only, so it is safe for anonymous callers.
--- -----------------------------------------------------------------------------
 create or replace function public.admin_setup_available()
 returns boolean
 language sql
@@ -44,14 +22,6 @@ as $$
   select not exists (select 1 from public.admins);
 $$;
 
-comment on function public.admin_setup_available() is
-  'True while the allowlist is empty, i.e. the first admin has not claimed access.';
-
--- -----------------------------------------------------------------------------
--- Claim the first admin slot. Only an authenticated account with a confirmed
--- email may call it, and only while no admin exists. The table lock closes the
--- race between two simultaneous claims.
--- -----------------------------------------------------------------------------
 create or replace function public.claim_first_admin()
 returns void
 language plpgsql
@@ -87,14 +57,6 @@ begin
 end;
 $$;
 
-comment on function public.claim_first_admin() is
-  'Makes the signed-in confirmed user the first admin while the allowlist is empty.';
-
--- -----------------------------------------------------------------------------
--- Apply a pending invitation to the signed-in account. Called after every
--- sign-in (password, magic link or restored session), so an invited person
--- becomes an admin without a second step. Returns true when applied.
--- -----------------------------------------------------------------------------
 create or replace function public.accept_admin_invite()
 returns boolean
 language plpgsql
@@ -133,12 +95,6 @@ begin
 end;
 $$;
 
-comment on function public.accept_admin_invite() is
-  'Grants admin access when the signed-in confirmed email has a pending invitation.';
-
--- -----------------------------------------------------------------------------
--- Admin directory (emails live in auth.users, which PostgREST does not expose).
--- -----------------------------------------------------------------------------
 create or replace function public.list_admins()
 returns table (
   user_id uuid,
@@ -183,11 +139,6 @@ as $$
   order by i.created_at;
 $$;
 
--- -----------------------------------------------------------------------------
--- Invite by email. Existing accounts are allowlisted immediately; unknown
--- emails become pending invitations. Returns a small status object:
---   {"status":"added"|"pending"|"exists"|"self","email":"..."}
--- -----------------------------------------------------------------------------
 create or replace function public.invite_admin(p_email text)
 returns jsonb
 language plpgsql
@@ -241,10 +192,6 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- Remove an admin. Self-removal is blocked so an admin cannot lock themselves
--- out; another admin can remove them. There is always at least one admin left.
--- -----------------------------------------------------------------------------
 create or replace function public.remove_admin(p_user_id uuid)
 returns void
 language plpgsql
@@ -288,10 +235,6 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- Permissions: setup helpers for the sign-in screen, everything else for
--- signed-in admins only. Function bodies enforce authorisation again.
--- -----------------------------------------------------------------------------
 revoke execute on function public.admin_setup_available() from public, anon;
 grant execute on function public.admin_setup_available() to anon, authenticated;
 

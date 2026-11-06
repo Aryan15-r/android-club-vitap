@@ -1,26 +1,8 @@
--- =============================================================================
--- ANDROID CLUB VIT-AP — schema
--- Run this file first in the Supabase SQL editor (or with `supabase db push`).
--- It is safe to re-run: objects are created only when missing and the settings
--- row is inserted with ON CONFLICT DO NOTHING.
--- =============================================================================
-
--- gen_random_uuid() and auth.uid() are provided by Supabase (Postgres 15+).
-
--- -----------------------------------------------------------------------------
--- Admin allowlist
--- A Supabase Auth user can manage content only when their id appears here.
--- -----------------------------------------------------------------------------
 create table if not exists public.admins (
   user_id uuid primary key references auth.users (id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
-comment on table public.admins is 'Supabase Auth users allowed to administer club content.';
-
--- Central authorisation predicate used by every write policy and RPC.
--- SECURITY DEFINER so it can read the allowlist while the allowlist itself
--- has no policies for ordinary users.
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -35,27 +17,6 @@ as $$
   );
 $$;
 
-comment on function public.is_admin() is 'True when the current JWT belongs to an allowlisted admin.';
-
--- Public/anon callers only ever need "published" predicates; admins need the
--- helper above. Revoke direct execution from anon for is_admin (not required,
--- but keeps the public surface small).
-revoke execute on function public.is_admin() from anon;
-grant execute on function public.is_admin() to authenticated;
-
--- The admin may read their own allowlist row (used by the client after login).
-alter table public.admins enable row level security;
-
-drop policy if exists "admins can read own row" on public.admins;
-create policy "admins can read own row"
-  on public.admins
-  for select
-  to authenticated
-  using (user_id = auth.uid());
-
--- -----------------------------------------------------------------------------
--- Shared helpers
--- -----------------------------------------------------------------------------
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -66,11 +27,6 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- Club settings (singleton row, id = 1)
--- Ordered lists that the UI edits as a whole are text[]; everything else is a
--- column so it can be validated and indexed normally.
--- -----------------------------------------------------------------------------
 create table if not exists public.club_settings (
   id smallint primary key default 1 check (id = 1),
   name text not null default 'ANDROID CLUB VIT-AP',
@@ -111,7 +67,6 @@ create table if not exists public.club_settings (
   constraint club_settings_logo_url_len check (char_length(logo_url) between 1 and 1000)
 );
 
--- Default club copy: the public site must render before any admin edits.
 insert into public.club_settings (
   id, name, college, tagline, description, about, mission, vision,
   objectives, areas, pillars, faqs, email, instagram, linkedin, github,
@@ -124,7 +79,7 @@ insert into public.club_settings (
   'A student technical community at VIT-AP University for mobile developers, designers and curious builders.',
   'Android Club VIT-AP is a technical club where students learn Android and mobile development, ship projects together and explore emerging technology. Edit this text in Admin → Settings.',
   'To help every member go from first app to shipped product through hands-on workshops and peer learning.',
-  'A campus where students build confidently for the platforms billions of people use.',
+  'To help every member go from first app to shipped product through hands-on workshops and peer learning.',
   array[
     'Teach Android and Kotlin through practical workshops',
     'Run collaborative projects and build-a-thons',
@@ -146,16 +101,11 @@ insert into public.club_settings (
     'How do I register for events? | Open an event and use its Register button; the form appears right on the page.',
     'How can I join the core team? | Watch the announcements for recruitment and take part in events.'
   ],
-  '', '', '', '',
-  '/logo.jpg',
+  '', '', '', '', '/logo.jpg',
   'ANDROID CLUB VIT-AP',
   'Workshops, build-a-thons and a community of student developers shaping what runs in your pocket.'
-)
-on conflict (id) do nothing;
+);
 
--- -----------------------------------------------------------------------------
--- Team roles (used to rank designations: leadership is shown larger)
--- -----------------------------------------------------------------------------
 create table if not exists public.team_roles (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -165,10 +115,6 @@ create table if not exists public.team_roles (
   constraint team_roles_rank_range check (rank between 1 and 99)
 );
 
--- -----------------------------------------------------------------------------
--- Team members
--- sort_order drives display order (the UI calls it `order`).
--- -----------------------------------------------------------------------------
 create table if not exists public.team_members (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -196,9 +142,6 @@ create table if not exists public.team_members (
 
 create index if not exists team_members_order_idx on public.team_members (sort_order, name);
 
--- -----------------------------------------------------------------------------
--- Events
--- -----------------------------------------------------------------------------
 do $$
 begin
   create type public.event_status as enum ('upcoming', 'completed');
@@ -237,8 +180,6 @@ create table if not exists public.events (
 create index if not exists events_public_feed_idx on public.events (published, status, date);
 create index if not exists events_date_idx on public.events (date);
 
--- True when an event is visible to the public. SECURITY DEFINER avoids the
--- policy subquery being filtered by the events RLS policies themselves.
 create or replace function public.event_is_public(p_event_id uuid)
 returns boolean
 language sql
@@ -256,9 +197,6 @@ $$;
 
 grant execute on function public.event_is_public(uuid) to anon, authenticated;
 
--- -----------------------------------------------------------------------------
--- Event images (gallery photographs and registration posters)
--- -----------------------------------------------------------------------------
 create table if not exists public.event_images (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.events (id) on delete cascade,
@@ -275,10 +213,6 @@ create table if not exists public.event_images (
 
 create index if not exists event_images_event_idx on public.event_images (event_id, kind, position);
 
--- -----------------------------------------------------------------------------
--- Event organizers (join table). ON DELETE RESTRICT protects event history:
--- a referenced member must be archived as "former" instead of deleted.
--- -----------------------------------------------------------------------------
 create table if not exists public.event_organizers (
   event_id uuid not null references public.events (id) on delete cascade,
   member_id uuid not null references public.team_members (id) on delete restrict,
@@ -287,9 +221,6 @@ create table if not exists public.event_organizers (
 
 create index if not exists event_organizers_member_idx on public.event_organizers (member_id);
 
--- -----------------------------------------------------------------------------
--- Announcements
--- -----------------------------------------------------------------------------
 create table if not exists public.announcements (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -319,9 +250,6 @@ create table if not exists public.announcements (
 create index if not exists announcements_feed_idx on public.announcements (published, published_on desc);
 create index if not exists announcements_event_idx on public.announcements (event_id);
 
--- -----------------------------------------------------------------------------
--- Uploaded media metadata (files live in the `media` Storage bucket)
--- -----------------------------------------------------------------------------
 create table if not exists public.media (
   id uuid primary key default gen_random_uuid(),
   path text not null unique,
@@ -337,9 +265,6 @@ create table if not exists public.media (
   constraint media_path_len check (char_length(path) between 1 and 500)
 );
 
--- -----------------------------------------------------------------------------
--- updated_at triggers
--- -----------------------------------------------------------------------------
 create or replace function public.set_settings_updated_by()
 returns trigger
 language plpgsql
@@ -375,10 +300,6 @@ create trigger announcements_set_updated_at
   before update on public.announcements
   for each row execute function public.set_updated_at();
 
--- -----------------------------------------------------------------------------
--- Least-privilege grants. RLS (next migration) is the actual authorisation
--- boundary; these grants only decide which verbs each role may attempt.
--- -----------------------------------------------------------------------------
 grant select on public.club_settings to anon, authenticated;
 grant update on public.club_settings to authenticated;
 
@@ -401,5 +322,4 @@ grant select on public.announcements to anon, authenticated;
 grant insert, update, delete on public.announcements to authenticated;
 
 grant select, insert, delete on public.media to authenticated;
-
 grant select on public.admins to authenticated;

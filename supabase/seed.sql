@@ -1,15 +1,3 @@
--- =============================================================================
--- ANDROID CLUB VIT-AP — optional demo content
--- Run after the three migrations. Every row has a fixed id and is inserted with
--- ON CONFLICT DO NOTHING, so running this file again never duplicates anything.
---
--- The content is clearly marked as sample data and can be replaced or deleted
--- from Admin without touching this file. Skip this file for an empty site.
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- Team roles (rank 1–2 is shown as leadership on the public site)
--- -----------------------------------------------------------------------------
 insert into public.team_roles (id, name, rank) values
   ('10000000-0000-4000-8000-000000000001', 'Club Lead', 1),
   ('10000000-0000-4000-8000-000000000002', 'Co-Lead', 2),
@@ -21,9 +9,6 @@ insert into public.team_roles (id, name, rank) values
   ('10000000-0000-4000-8000-000000000008', 'Core Team Member', 5)
 on conflict (id) do nothing;
 
--- -----------------------------------------------------------------------------
--- Team members
--- -----------------------------------------------------------------------------
 insert into public.team_members
   (id, name, designation, bio, department, year, image, linkedin, github, current, sort_order)
 values
@@ -34,9 +19,6 @@ values
   ('20000000-0000-4000-8000-000000000005', 'Kai Mockwell', 'Club Lead', 'Sample profile of a former member — replace via Admin → Team.', 'CSE', 'Final year', '', '', '', false, 5)
 on conflict (id) do nothing;
 
--- -----------------------------------------------------------------------------
--- Events
--- -----------------------------------------------------------------------------
 insert into public.events
   (id, title, description, date, time, venue, category, status, published, cover, highlights, links)
 values
@@ -87,9 +69,6 @@ values
   )
 on conflict (id) do nothing;
 
--- -----------------------------------------------------------------------------
--- Event gallery photographs (sample gradient artwork in public/seed)
--- -----------------------------------------------------------------------------
 insert into public.event_images (id, event_id, kind, url, alt, position) values
   ('40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', 'gallery', '/seed/gallery-1.svg', 'Kotlin Study Jam (sample) – illustrative photo 1', 0),
   ('40000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000003', 'gallery', '/seed/gallery-2.svg', 'Kotlin Study Jam (sample) – illustrative photo 2', 1),
@@ -100,9 +79,6 @@ insert into public.event_images (id, event_id, kind, url, alt, position) values
   ('40000000-0000-4000-8000-000000000007', '30000000-0000-4000-8000-000000000004', 'gallery', '/seed/gallery-3.svg', 'Android 101 Intro Session (sample) – illustrative photo 3', 2)
 on conflict (id) do nothing;
 
--- -----------------------------------------------------------------------------
--- Event organizers
--- -----------------------------------------------------------------------------
 insert into public.event_organizers (event_id, member_id) values
   ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001'),
   ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003'),
@@ -115,9 +91,6 @@ insert into public.event_organizers (event_id, member_id) values
   ('30000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000001')
 on conflict (event_id, member_id) do nothing;
 
--- -----------------------------------------------------------------------------
--- Announcements
--- -----------------------------------------------------------------------------
 insert into public.announcements
   (id, title, message, published_on, expires_on, published, featured, event_id, cta_label, cta_url, registration_url, image, links)
 values
@@ -152,10 +125,3 @@ values
   )
 on conflict (id) do nothing;
 
--- -----------------------------------------------------------------------------
--- Grant the first admin (run once, after creating the user in
--- Authentication → Users). Replace the email with the real admin address.
--- -----------------------------------------------------------------------------
--- insert into public.admins (user_id)
--- select id from auth.users where email = 'admin@androidclub.demo'
--- on conflict (user_id) do nothing;

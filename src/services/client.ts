@@ -1,7 +1,4 @@
 import{createClient,type SupabaseClient}from'@supabase/supabase-js'
-
-// Client configuration is read from Vite env vars. The anon key is designed to be
-// public: row level security in Postgres is the security boundary, never this key.
 const url=(import.meta.env.VITE_SUPABASE_URL as string|undefined)?.trim()
 const anonKey=(import.meta.env.VITE_SUPABASE_ANON_KEY as string|undefined)?.trim()
 
@@ -13,9 +10,7 @@ export function getSupabase():SupabaseClient|null{
  if(!client){
   try{
    client=createClient(url!,anonKey!,{
-    // true so Supabase can consume the recovery link's token on
-    // /admin/reset-password and create the short-lived reset session.
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
     global:{headers:{'x-application-name':'android-club-vitap'}}
    })
   }catch{return null}
@@ -28,16 +23,11 @@ export function requireSupabase():SupabaseClient{
  if(!sb)throw new Error('Backend not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.')
  return sb
 }
-
-// The UI subscribes to this bus (see useService) so every successful write
-// refetches the affected views immediately.
 const changeSubs=new Set<()=>void>()
 export const onChange=(f:()=>void)=>{changeSubs.add(f);return()=>{changeSubs.delete(f)}}
 export const emitChange=()=>changeSubs.forEach(f=>f())
 
 type DbError={message?:string;code?:string;details?:string;hint?:string}
-// Errors are translated to short, user-facing sentences. Internal Postgres
-// detail (constraint names, SQL, hints) is never surfaced in the UI.
 const INTERNAL=/^(new row|duplicate key|insert or update|update or delete|null value in column|violates |relation "|column "|permission denied|syntax error)/i
 
 export function fail(error:unknown,fallback='Something went wrong. Please try again.'):never{

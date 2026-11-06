@@ -53,9 +53,6 @@ export const teamService={
   emitChange()
   return mapMember(data as TeamMemberRow)
  },
-
- // Members referenced by past events are archived as "former" by the database
- // function so event history stays intact; others are deleted.
  async deleteTeamMember(id:string):Promise<boolean>{
   const sb=requireSupabase()
   const{error}=await sb.rpc('delete_team_member',{p_member_id:id})
