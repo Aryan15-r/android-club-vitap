@@ -5,4 +5,6 @@ export interface TeamRole{id:string;name:string;rank:number}
 export interface TeamMember{id:string;name:string;designation:string;bio:string;department:string;year:string;image:string;linkedin?:string;github?:string;current:boolean;order:number}
 export interface Announcement{id:string;title:string;message:string;publishedOn:string;expiresOn?:string;published:boolean;featured:boolean;eventId?:string;ctaLabel?:string;ctaUrl?:string;registrationUrl?:string;image?:string;links?:string[]}
 export interface AdminUser{id:string;email:string;name:string}
+export interface AdminMember{id:string;email:string;createdAt:string;isSelf:boolean}
+export interface AdminInvite{email:string;createdAt:string;invitedBy:string}
 export interface MediaAsset{id:string;url:string;name:string;size:number;temporary:boolean}

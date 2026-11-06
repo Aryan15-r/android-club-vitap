@@ -1,25 +1,48 @@
 import{useEffect,useState,type FormEvent,type ReactNode}from'react'
 import{Link,NavLink,Navigate,Outlet,useNavigate,useSearchParams}from'react-router-dom'
-import{LayoutDashboard,CalendarDays,Users,Megaphone,Settings,LogOut,Eye,EyeOff,Pencil,Trash2,ArrowUp,ArrowDown,Plus}from'lucide-react'
-import{authService,clubService,eventService,teamService,announcementService}from'../services'
+import{LayoutDashboard,CalendarDays,Users,Megaphone,Settings,LogOut,Eye,EyeOff,Pencil,Trash2,ArrowUp,ArrowDown,Plus,ShieldCheck,Send}from'lucide-react'
+import{authService,clubService,eventService,teamService,announcementService,adminService}from'../services'
 import{useService,useAuth,Logo,Spinner,Empty,Modal,Confirm,FormBody,toast,type F}from'../ui'
+import type{AdminInvite,AdminMember}from'../types'
 const today=()=>new Date().toISOString().slice(0,10)
 const pairs=(a:string[])=>a.map(x=>[x,x] as [string,string])
 
 export function AdminLayout(){const{data:c}=useService(clubService.getClubSettings),nav=useNavigate(),{user}=useAuth()
  if(!user)return<Navigate to="/admin/login" replace/>
- const items=[['Overview','/admin',LayoutDashboard],['Events','/admin/events',CalendarDays],['Team','/admin/team',Users],['Announcements','/admin/announcements',Megaphone],['Settings','/admin/settings',Settings]] as const
+ const items=[['Overview','/admin',LayoutDashboard],['Events','/admin/events',CalendarDays],['Team','/admin/team',Users],['Admins','/admin/admins',ShieldCheck],['Announcements','/admin/announcements',Megaphone],['Settings','/admin/settings',Settings]] as const
  return<div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]"><aside className="glass m-3 flex flex-col gap-4 p-4 lg:sticky lg:top-3 lg:h-[calc(100vh-1.5rem)]"><div className="flex items-center gap-3"><Logo src={c?.logoUrl||'/logo.jpg'} className="h-10 w-10"/><div><p className="text-sm font-bold">Android Club</p><p className="text-xs text-mute">Admin</p></div></div>
  <nav aria-label="Admin" className="flex gap-1 overflow-x-auto lg:flex-col">{items.map(([l,to,I])=><NavLink key={to} to={to} end={to==='/admin'} className={({isActive})=>`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm ${isActive?'bg-droid/15 text-droid':'text-mute hover:bg-white/5 hover:text-white'}`}><I size={16}/>{l}</NavLink>)}</nav>
  <div className="flex gap-2 lg:mt-auto lg:flex-col"><Link to="/" className="btn-g">View site</Link><button className="btn-g" onClick={async()=>{await authService.logout();nav('/admin/login')}}><LogOut size={16}/>Sign out</button></div></aside><main className="min-w-0 p-5 lg:p-8"><Outlet/></main></div>}
 
-export function Login(){const nav=useNavigate(),[email,setE]=useState(''),[pw,setP]=useState(''),[show,setS]=useState(false),[err,setErr]=useState(''),[busy,setB]=useState(false),{data:c}=useService(clubService.getClubSettings),{user}=useAuth()
- const go=async(e:FormEvent)=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(email))return setErr('Enter a valid email address.');if(!pw)return setErr('Enter your password.');setB(true);setErr('');try{await authService.login({email,password:pw});nav('/admin')}catch(x:any){setErr(x.message);setB(false)}}
- if(!authService.isUnlocked()&&!user)return<Navigate to="/" replace/>
- return<div className="grid min-h-screen place-items-center px-5"><form onSubmit={go} noValidate className="glass w-full max-w-md p-8"><div className="flex flex-col items-center text-center"><Logo src={c?.logoUrl||'/logo.jpg'} className="h-20 w-20"/><h1 className="mt-4 text-2xl font-bold">Android Club VIT-AP admin</h1><p className="mt-1 text-xs text-mute">Sign in with your club admin account.</p></div>
+export function Login(){const nav=useNavigate(),[email,setE]=useState(''),[pw,setP]=useState(''),[show,setS]=useState(false),[err,setErr]=useState(''),[msg,setMsg]=useState(''),[busy,setB]=useState(false),[resetMode,setReset]=useState(false),[setupEmail,setSetupEmail]=useState(''),{data:c}=useService(clubService.getClubSettings),{user}=useAuth()
+ useEffect(()=>{if(user)nav('/admin',{replace:true})},[user,nav])
+ // A page reload during setup should keep the one-click claim card instead of
+ // asking for the password again. Only shown while the allowlist is empty.
+ useEffect(()=>{let ok=true;authService.setupSession().then(e=>{if(ok&&e)setSetupEmail(e)},()=>{});return()=>{ok=false}},[])
+ const go=async(e:FormEvent)=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(email))return setErr('Enter a valid email address.');if(!pw)return setErr('Enter your password.');setB(true);setErr('');try{const out=await authService.login({email,password:pw});if(out.status==='setup'){setSetupEmail(out.email);setB(false);return}nav('/admin')}catch(x:any){setErr(x.message);setB(false)}}
+ const sendReset=async(e:FormEvent)=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(email))return setErr('Enter a valid email address.');setB(true);setErr('');setMsg('');try{await authService.requestPasswordReset(email);setMsg('If an account exists for that address, a reset link is on its way. Check your inbox.')}catch(x:any){setErr(x.message)}setB(false)}
+ const claim=async()=>{setB(true);setErr('');try{await authService.claimFirstAdmin();toast('Admin access enabled.');nav('/admin')}catch(x:any){setErr(x.message);setB(false)}}
+ const cancelSetup=async()=>{setB(true);await authService.logout();setSetupEmail('');setP('');setErr('');setB(false)}
+ const switchMode=(toReset:boolean)=>{setReset(toReset);setErr('');setMsg('')}
+ if(setupEmail)return<div className="grid min-h-screen place-items-center px-5"><div className="glass w-full max-w-md p-8"><div className="flex flex-col items-center text-center"><Logo src={c?.logoUrl||'/logo.jpg'} className="h-20 w-20"/><h1 className="mt-4 text-2xl font-bold">First-time setup</h1><p className="mt-1 text-xs text-mute">No admin exists yet. Claim access for this account.</p></div>
+ <p className="mt-6 rounded-xl bg-white/5 px-3 py-2 text-center text-sm font-medium">{setupEmail}</p><p className="mt-4 text-sm text-mute">This makes you the club admin. You can invite other admins afterward.</p>
+ {err&&<p role="alert" className="mt-3 text-sm text-red-300">{err}</p>}<button type="button" className="btn-p mt-6 w-full" disabled={busy} onClick={claim}>{busy?'Enabling…':'Claim admin access'}</button><button type="button" className="btn-g mt-3 w-full" disabled={busy} onClick={cancelSetup}>Cancel</button></div></div>
+ return<div className="grid min-h-screen place-items-center px-5"><form onSubmit={resetMode?sendReset:go} noValidate className="glass w-full max-w-md p-8"><div className="flex flex-col items-center text-center"><Logo src={c?.logoUrl||'/logo.jpg'} className="h-20 w-20"/><h1 className="mt-4 text-2xl font-bold">{resetMode?'Reset your password':'Android Club VIT-AP admin'}</h1><p className="mt-1 text-xs text-mute">{resetMode?'Enter your admin email and we will send a reset link.':'Sign in with your club admin account.'}</p></div>
  <label htmlFor="em" className="mb-1 mt-6 block text-sm font-medium">Email</label><input id="em" type="email" autoComplete="username" className="in" value={email} onChange={e=>setE(e.target.value)}/>
- <label htmlFor="pw" className="mb-1 mt-4 block text-sm font-medium">Password</label><div className="relative"><input id="pw" type={show?'text':'password'} autoComplete="current-password" className="in pr-11" value={pw} onChange={e=>setP(e.target.value)}/><button type="button" aria-label={show?'Hide password':'Show password'} onClick={()=>setS(!show)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-mute">{show?<EyeOff size={18}/>:<Eye size={18}/>}</button></div>
- {err&&<p role="alert" className="mt-3 text-sm text-red-300">{err}</p>}<button className="btn-p mt-6 w-full" disabled={busy}>{busy?'Signing in…':'Sign in'}</button></form></div>}
+ {!resetMode&&<><label htmlFor="pw" className="mb-1 mt-4 block text-sm font-medium">Password</label><div className="relative"><input id="pw" type={show?'text':'password'} autoComplete="current-password" className="in pr-11" value={pw} onChange={e=>setP(e.target.value)}/><button type="button" aria-label={show?'Hide password':'Show password'} onClick={()=>setS(!show)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-mute">{show?<EyeOff size={18}/>:<Eye size={18}/>}</button></div><div className="mt-2 text-right"><button type="button" className="text-sm font-medium text-droid underline" onClick={()=>switchMode(true)}>Forgot password?</button></div></>}
+ {err&&<p role="alert" className="mt-3 text-sm text-red-300">{err}</p>}{msg&&<p role="status" className="mt-3 text-sm text-droid">{msg}</p>}<button className="btn-p mt-6 w-full" disabled={busy}>{resetMode?(busy?'Sending…':'Send reset link'):(busy?'Signing in…':'Sign in')}</button>
+ {resetMode&&<button type="button" className="btn-g mt-3 w-full" onClick={()=>switchMode(false)}>Back to sign in</button>}</form></div>}
+
+export function ResetPassword(){const nav=useNavigate(),[pw,setP]=useState(''),[confirm,setC]=useState(''),[show,setS]=useState(false),[err,setErr]=useState(''),[busy,setB]=useState(false),[state,setState]=useState<'checking'|'ready'|'invalid'>('checking'),{data:c}=useService(clubService.getClubSettings)
+ // The recovery email link creates a Supabase session before this page renders.
+ useEffect(()=>{let ok=true;authService.hasSession().then(has=>{if(ok)setState(has?'ready':'invalid')},()=>{if(ok)setState('invalid')});return()=>{ok=false}},[])
+ const go=async(e:FormEvent)=>{e.preventDefault();if(pw.length<8)return setErr('Use at least 8 characters.');if(pw!==confirm)return setErr('The two passwords do not match.');setB(true);setErr('');try{await authService.completePasswordReset(pw);toast('Password updated. Sign in with your new password.');nav('/admin/login')}catch(x:any){setErr(x.message);setB(false)}}
+ return<div className="grid min-h-screen place-items-center px-5"><div className="glass w-full max-w-md p-8"><div className="flex flex-col items-center text-center"><Logo src={c?.logoUrl||'/logo.jpg'} className="h-20 w-20"/><h1 className="mt-4 text-2xl font-bold">Set a new password</h1><p className="mt-1 text-xs text-mute">Choose a new password for your club admin account.</p></div>
+ {state==='checking'?<Spinner/>:state==='invalid'?<div className="mt-6 text-center"><p className="text-sm text-mute">This reset link is invalid or has expired. Request a new link from the sign-in screen.</p><Link to="/" className="btn-g mt-6">Back to home</Link></div>:
+ <form onSubmit={go} noValidate><label htmlFor="np" className="mb-1 mt-6 block text-sm font-medium">New password</label><div className="relative"><input id="np" type={show?'text':'password'} autoComplete="new-password" className="in pr-11" value={pw} onChange={e=>setP(e.target.value)}/><button type="button" aria-label={show?'Hide password':'Show password'} onClick={()=>setS(!show)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-mute">{show?<EyeOff size={18}/>:<Eye size={18}/>}</button></div>
+ <label htmlFor="cp" className="mb-1 mt-4 block text-sm font-medium">Confirm password</label><input id="cp" type="password" autoComplete="new-password" className="in" value={confirm} onChange={e=>setC(e.target.value)}/>
+ {err&&<p role="alert" className="mt-3 text-sm text-red-300">{err}</p>}<button className="btn-p mt-6 w-full" disabled={busy}>{busy?'Updating…':'Update password'}</button><Link to="/" className="btn-g mt-3 w-full">Cancel</Link></form>}
+ </div></div>}
 
 const Head=({t,children}:{t:string;children?:ReactNode})=><div className="mb-6 flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold">{t}</h1>{children}</div>
 
@@ -57,6 +80,37 @@ export function TeamAdmin(){const{data:roles}=useService(teamService.getTeamRole
  onRemove={teamService.deleteTeamMember} delText="Members who organized events are kept as former members so event history stays intact; others are removed."
  row={m=>({title:m.name,sub:m.designation,img:m.image,badges:[m.current?'Current':'Former',`Order ${m.order}`]})} tags={m=>[m.current?'Current':'Former',m.designation]}
  extra={(m,all)=>{const ids=all.map(x=>x.id),i=ids.indexOf(m.id),mv=(d:number)=>{const n=[...ids];[n[i],n[i+d]]=[n[i+d],n[i]];teamService.reorderTeamMembers(n)};return<><button className="btn-g" aria-label={`Move ${m.name} up`} disabled={i===0} onClick={()=>mv(-1)}><ArrowUp size={14}/></button><button className="btn-g" aria-label={`Move ${m.name} down`} disabled={i===ids.length-1} onClick={()=>mv(1)}><ArrowDown size={14}/></button></>}}/>}
+
+export function AdminsAdmin(){
+ const{data:admins,loading,error}=useService(adminService.listAdmins)
+ const{data:invites,loading:invitesLoading,error:invitesError}=useService(adminService.listInvites)
+ const[email,setE]=useState(''),[busy,setB]=useState(false),[act,setAct]=useState(''),[note,setNote]=useState(''),[err,setErr]=useState('')
+ const[del,setDel]=useState<AdminMember|null>(null),[ci,setCi]=useState<AdminInvite|null>(null)
+ const when=(v:string)=>{const d=new Date(v);return isNaN(d.getTime())?'':d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}
+ const add=async(e:FormEvent)=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(email))return setErr('Enter a valid email address.');setB(true);setErr('');setNote('')
+  try{const r=await adminService.invite(email)
+   if(r.status==='self'){setNote('You already have admin access.');return}
+   if(r.status==='exists'){setNote('That account is already an admin.');return}
+   const target=r.email||email.trim()
+   try{await adminService.sendInviteEmail(target,r.status==='pending')
+    setNote(r.status==='pending'?`Invite sent to ${target}. They become an admin after opening the link.`:`${target} now has admin access. A sign-in link was emailed to them.`)
+    setE('')
+   }catch(mailErr:any){setNote(r.status==='pending'?`Invite saved for ${target}, but the email could not be sent: ${mailErr.message} Create their account in Supabase Auth (or enable sign-ups) and they will get access when they sign in.`:`${target} now has admin access, but the sign-in email could not be sent: ${mailErr.message}`)}
+  }catch(x:any){setErr(x.message)}finally{setB(false)}}
+ const resend=async(i:AdminInvite)=>{setAct(i.email);try{await adminService.sendInviteEmail(i.email,true);toast('Invite email sent.')}catch(x:any){toast(x.message,'err')}setAct('')}
+ const cancel=async(i:AdminInvite)=>{setAct(i.email);try{await adminService.cancelInvite(i.email);toast('Invite cancelled')}catch(x:any){toast(x.message,'err')}setAct('')}
+ const remove=async(a:AdminMember)=>{setAct(a.id);try{await adminService.remove(a.id);toast('Admin access removed')}catch(x:any){toast(x.message,'err')}setAct('')}
+ if(error||invitesError)return<Empty title="Could not load admins" hint={error||invitesError}/>
+ if(loading||invitesLoading||!admins||!invites)return<Spinner/>
+ return<><Head t="Admins"/><div className="glass max-w-3xl p-6"><h2 className="font-semibold">Invite an admin</h2><p className="mt-1 text-sm text-mute">They get full access to events, the team, announcements and settings. Use the email they sign in with.</p>
+ <form onSubmit={add} noValidate className="mt-4 flex flex-wrap items-end gap-3"><div className="min-w-[14rem] flex-1"><label htmlFor="admin-email" className="mb-1 block text-sm font-medium">Email</label><input id="admin-email" type="email" autoComplete="email" className="in" value={email} onChange={e=>setE(e.target.value)}/></div><button className="btn-p" disabled={busy||!!act}>{busy?'Inviting…':'Invite admin'}</button></form>
+ {err&&<p role="alert" className="mt-3 text-sm text-red-300">{err}</p>}{note&&<p role="status" className="mt-3 text-sm text-droid">{note}</p>}
+ <p className="mt-3 text-xs text-mute">We email a one-time sign-in link. New addresses need sign-ups enabled, or an account created in Supabase Auth first.</p></div>
+ <h2 className="mb-3 mt-10 font-semibold">Current admins</h2>{!admins.length?<Empty title="No admins yet" hint="Use the form above to add one."/>:<ul className="grid gap-3">{admins.map(a=><li key={a.id} className="glass flex flex-wrap items-center gap-4 p-4"><div className="min-w-0 flex-1"><p className="truncate font-semibold">{a.email||'Unknown email'}</p><p className="text-sm text-mute">{when(a.createdAt)?`Admin since ${when(a.createdAt)}`:'Admin'}</p></div><div className="flex flex-wrap items-center gap-2">{a.isSelf?<span className="rounded-full bg-droid/15 px-2 py-0.5 text-xs text-droid">You</span>:<button className="btn-g" disabled={!!act} onClick={()=>setDel(a)}><Trash2 size={14}/>Remove</button>}</div></li>)}</ul>}
+ {!!invites.length&&<><h2 className="mb-3 mt-10 font-semibold">Pending invites</h2><ul className="grid gap-3">{invites.map(i=><li key={i.email} className="glass flex flex-wrap items-center gap-4 p-4"><div className="min-w-0 flex-1"><p className="truncate font-semibold">{i.email}</p><p className="text-sm text-mute">{i.invitedBy?`Invited by ${i.invitedBy}`:'Invited by an admin'} · waiting for sign-in</p></div><div className="flex flex-wrap gap-2"><button className="btn-g" disabled={!!act} onClick={()=>resend(i)}><Send size={14}/>{act===i.email?'Sending…':'Resend'}</button><button className="btn-g" disabled={!!act} onClick={()=>setCi(i)}>Cancel</button></div></li>)}</ul></>}
+ <Confirm open={!!del} title="Remove admin access?" text={del?`${del.email} will lose access immediately. You can invite them again later.`:''} onNo={()=>setDel(null)} onYes={async()=>{if(del){await remove(del);setDel(null)}}}/>
+ <Confirm open={!!ci} title="Cancel invitation?" text={ci?`The invitation for ${ci.email} will be removed.`:''} onNo={()=>setCi(null)} onYes={async()=>{if(ci){await cancel(ci);setCi(null)}}}/></>
+}
 
 export function NewsAdmin(){const{data:ev}=useService(eventService.getEvents)
  const f:F[]=[{k:'title',label:'Title',t:'text',req:true},{k:'message',label:'Message',t:'area',req:true},{k:'publishedOn',label:'Publication date',t:'date',req:true},{k:'expiresOn',label:'Expiration date (optional)',t:'date'},{k:'eventId',label:'Related event (optional)',t:'select',opts:(ev||[]).map(e=>[e.id,e.title])},{k:'ctaLabel',label:'Button label (optional)',t:'text'},{k:'ctaUrl',label:'Button URL (optional)',t:'text'},{k:'registrationUrl',label:'Registration form link (opens as a pop-up, optional)',t:'text'},{k:'image',label:'Announcement image (optional)',t:'img'},{k:'links',label:'Related links (one per line: Label | https://…)',t:'lines'},{k:'published',label:'Published',t:'check'},{k:'featured',label:'Featured',t:'check'}]

@@ -13,7 +13,9 @@ export function getSupabase():SupabaseClient|null{
  if(!client){
   try{
    client=createClient(url!,anonKey!,{
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},
+    // true so Supabase can consume the recovery link's token on
+    // /admin/reset-password and create the short-lived reset session.
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
     global:{headers:{'x-application-name':'android-club-vitap'}}
    })
   }catch{return null}
@@ -60,7 +62,14 @@ export function fail(error:unknown,fallback='Something went wrong. Please try ag
 export function failAuth(message:string):never{
  if(/invalid login credentials/i.test(message))throw new Error('Invalid email or password.')
  if(/email not confirmed/i.test(message))throw new Error('Confirm your email address before signing in.')
- if(/rate limit|too many/i.test(message))throw new Error('Too many attempts. Please wait a minute and try again.')
+ if(/auth session missing|session.*not found|invalid.*token|token.*expired/i.test(message))
+  throw new Error('This reset link is invalid or has expired. Request a new one from the sign-in screen.')
+ if(/signups? not allowed|signup.*disabled|new users.*disabled/i.test(message))
+  throw new Error('New sign-ups are disabled. Create the account in Supabase Auth first, or enable sign-ups temporarily.')
+ if(/email address not authorized|not authorized.*email address|only.*team members/i.test(message))
+  throw new Error('The built-in email sender can only reach project team addresses. Configure SMTP in Supabase.')
+ if(/rate limit|too many|security purposes|only request this/i.test(message))
+  throw new Error('Too many attempts. Please wait a minute and try again.')
  if(/failed to fetch|networkerror|fetch failed/i.test(message))throw new Error('Could not reach the backend. Check your connection and try again.')
  throw new Error(message||'Sign in failed. Please try again.')
 }
