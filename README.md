@@ -4,7 +4,7 @@ A public website for **ANDROID CLUB VIT-AP** (VIT-AP University) plus an admin d
 
 Design: black, Android green (`#3DDC84`) and white, with a Liquid Glass look: translucent panels, a full-site grid with glowing Android tiles, a glowing cursor, slow smooth scrolling, scroll-linked blur-in, and a fluid-filled hero title. The UI is unchanged from the original frontend; this iteration adds a real backend behind it.
 
-Backend: **Supabase** — Postgres with row level security, email/password Auth, and Storage for images. The frontend remains a static React SPA that talks to Supabase directly; there is no custom API server to run or deploy.
+Backend: **Supabase** - Postgres with row level security, email/password Auth, and Storage for images. The frontend remains a static React SPA that talks to Supabase directly; there is no custom API server to run or deploy.
 
 ---
 
