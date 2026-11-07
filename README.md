@@ -53,18 +53,6 @@ Section order: **Hero → About → What we do → Announcements → Events → 
 
 ## Admin access
 
-The admin area is reached through a hidden entrance, then a normal login screen.
-
-1. On the home page, left-click the empty area to the right of the word **CLUB** in the hero title.
-2. Type the access key. Only small `*` characters appear, with no box and no error message. A wrong key simply does nothing.
-3. The correct key opens `/admin/login`. Sign in with the demo account:
-
-   | Email | Password |
-   |---|---|
-   | `admin@androidclub.demo` | `android-demo` |
-
-The access key is set as `ACCESS_KEY` in `src/services/mock.ts` (inside `authService`). Change it there, and change the demo credentials in the same file.
-
 `/admin/login` redirects to the home page unless the key was entered or you are already signed in. Signing out locks it again.
 
 **Important:** the key, the credentials and the route guards all live in frontend code, so anyone who inspects the site can find them. This only hides the admin entrance for the prototype. Real protection needs a backend with proper authentication and authorization.
