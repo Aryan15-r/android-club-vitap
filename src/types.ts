@@ -11,3 +11,6 @@ export interface MediaAsset{id:string;url:string;name:string;size:number;tempora
 export interface TotpSecret{id:string;secret:string;createdAt:string;lastVerifiedAt?:string;isActive:boolean}
 export interface TotpEnrollment{secret:string;qrCodeUrl:string;provisioningUrl:string}
 export type LoginOutcomeWithTotp={status:'admin'}|{status:'setup';email:string}|{status:'totp_enrollment';email:string}|{status:'totp_verification';email:string}
+export interface UserProfile{id:string;totpEnabled:boolean;totpSecret?:TotpSecret;backupCodes:string[];lastTotpSetup?:string;lastTotpVerification?:string;totpSetupIP?:string;totpFailureCount:number}
+export interface TwoFactorSettings{qrCodeUrl:string;provisioningUrl:string;secretKey:string;backupCodes:string[]}
+export interface TwoFactorLog{id:string;userId:string;action:'enabled'|'disabled'|'setup'|'verify'|'failed';ipAddress?:string;timestamp:string;details?:string}
