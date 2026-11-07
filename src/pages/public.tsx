@@ -78,7 +78,7 @@ function FluidTitle({text}:{text:string}){const r=useRef<SVGSVGElement>(null);us
 // it is bundled into the client and grants no permissions; Supabase Auth and RLS protect the data.
 function SecretLock(){const nav=useNavigate(),[open,setO]=useState(false),[s,setS]=useState(''),ref=useRef<HTMLInputElement>(null),t=useRef(0)
  useEffect(()=>{if(open)ref.current?.focus();return()=>clearTimeout(t.current)},[open])
- const chg=(v:string)=>{const n=v.length<s.length?s.slice(0,v.length):s+v.slice(s.length);setS(n);clearTimeout(t.current);t.current=window.setTimeout(()=>setS(''),4000);if(authService.verifyAccessKey(n))nav('/admin/login')}
+  const chg=async(v:string)=>{const n=v.length<s.length?s.slice(0,v.length):s+v.slice(s.length);setS(n);clearTimeout(t.current);t.current=window.setTimeout(()=>setS(''),4000);if(await authService.verifyAccessKey(n))nav('/admin/login')}
  return<><div className="absolute left-[62%] top-[40%] h-[44%] w-[24%]">{open?<input ref={ref} type="text" autoComplete="off" autoCapitalize="off" spellCheck={false} aria-label="Access key" className="absolute inset-0 h-full w-full cursor-default bg-transparent opacity-0 caret-transparent" value={'*'.repeat(s.length)} onChange={e=>chg(e.target.value)} onBlur={()=>{setO(false);setS('')}} onKeyDown={e=>{if(e.key==='Escape'){setO(false);setS('')}if(e.key==='Enter')setS('')}}/>:<button type="button" aria-label="Secret access" onClick={()=>setO(true)} className="h-full w-full cursor-default rounded-2xl opacity-0 focus-visible:opacity-100"/>}</div>
   <span aria-hidden="true" className="pointer-events-none absolute left-[61%] top-[59%] flex h-[7%] w-[19%] items-center text-base tracking-[.25em] text-white/80">{'*'.repeat(s.length)}</span></>}
 
